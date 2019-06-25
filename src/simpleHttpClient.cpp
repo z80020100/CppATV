@@ -33,3 +33,9 @@ int SimpleHttpClient::tcpDisconnect() {
 	return close(socket_fd);
 }
 
+int SimpleHttpClient::sendData(const char *buf, int len) {
+	int ret;
+	ret = send(socket_fd, buf, len, 0);
+	return ret;
+}
+
