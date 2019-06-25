@@ -13,6 +13,7 @@ public:
 	int tcpConnect();
 	int tcpDisconnect();
 	int sendData(const char *buf, int len);
+	int recvData(char *buf, int len);
 
 private:
 	struct hostent *host_info;

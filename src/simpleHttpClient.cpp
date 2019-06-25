@@ -39,3 +39,9 @@ int SimpleHttpClient::sendData(const char *buf, int len) {
 	return ret;
 }
 
+int SimpleHttpClient::recvData(char *buf, int len) {
+	int ret;
+	ret = recv(socket_fd, buf, len, 0);
+	return ret;
+}
+
