@@ -42,6 +42,31 @@ string genAuthStep0Request(char *host, int port) {
 	return ostrStep0Request.str();
 }
 
+string genAuthStep1Request(char *host, int port, unsigned char *plist_bin, uint32_t plist_bin_len) {
+	// POST /pair-setup-pin HTTP/1.1
+	// Host: 192.168.0.147:7000
+	// Accept-Encoding: gzip, deflate
+	// Accept: */*
+	// User-Agent: Python/3.5 aiohttp/3.5.4
+	// Content-Length: 85
+	// Content-Type: application/octet-stream
+	// plist binary data
+
+	ostringstream ostrRequest;
+	string UrlStr = APPLE_URL_PAIR_SETUP_PIN;
+
+	ostrRequest << HTTP_REQUEST_METHOD_POST << " " << UrlStr << " " << HTTP_PROTOCOL_VERSION << "\r\n";
+	ostrRequest << "Host: " << host << ":" << port << "\r\n";
+	ostrRequest << "Accept-Encoding: gzip, deflate" << "\r\n";
+	ostrRequest << "Accept: */*" << "\r\n";
+	ostrRequest << "User-Agent: Python/3.5 aiohttp/3.5.4" << "\r\n";
+	ostrRequest << "Content-Length: " << plist_bin_len << "\r\n";
+	ostrRequest << "Content-Type: application/octet-stream" << "\r\n";
+	ostrRequest << "\r\n";
+
+	return ostrRequest.str().append((const char*)plist_bin, plist_bin_len);
+}
+
 plist_t genAuthStep1Plist(string user) {
 	// XML format:
 	// <?xml version="1.0" encoding="UTF-8"?>
@@ -140,6 +165,33 @@ int main() {
 		cout << "################################" << endl;
 		cout << plist_xml;
 		cout << "################################" << endl << endl;
+	}
+
+	strRequestData = genAuthStep1Request(host, port, plist_bin, plist_bin_len);
+	ret = httpClient.sendData(strRequestData.c_str(), strRequestData.length());
+	if(ret != 1) {
+		printf("Send %d bytes data\n", ret);
+		if(debug) {
+			cout << "################################" << endl;
+			cout << strRequestData << endl;
+			cout << "################################" << endl << endl;
+		}
+	} else {
+		printf("Send data failed, ret = %d\n", ret);
+		return -1;
+	}
+
+	ret = httpClient.recvData(pResponseBuf, BUF_SIZE);
+	if(ret != 1) {
+		printf("Reveive %d bytes data\n", ret);
+		if(debug) {
+			cout << "################################" << endl;
+			cout << pResponseBuf << endl;
+			cout << "################################" << endl << endl;
+		}
+	} else {
+		printf("Receive data failed, ret = %d\n", ret);
+		return -1;
 	}
 
 	free(plist_bin);
