@@ -9,12 +9,18 @@
 
 #include <plist/plist.h>
 
+#include <cryptopp/xed25519.h>
+
 #include "simpleHttpClient.hpp"
 #include "atv.hpp"
 
 #define BUF_SIZE 4096
 
+#define PRIVATE_KEY_LEN ed25519PrivateKey::SECRET_KEYLENGTH
+#define PUBLIC_KEY_LEN  ed25519PrivateKey::PUBLIC_KEYLENGTH
+
 using namespace std;
+using namespace CryptoPP;
 
 string genAuthStep0Request(char *host, int port) {
 	// POST /pair-pin-start HTTP/1.1
@@ -100,6 +106,39 @@ int main() {
 
 	string identifier = "FE32DDEADA833CE7"; // Hexadecimal representation of the 8 bytes binary data. (user name)
 	char* pin = "1111"; // ASCII representation. (password)
+	string strSeed = "8C43FEBD67F4DBB3B2C7FFBB1B7C1E580512823E3B759259E8CB33382A5DA60A"; // It's ed25519 private key exactly, hexadecimal representation
+	byte binSeed[PRIVATE_KEY_LEN] = {0}; // ed25519 private key, binary data, 32 bytes
+	unsigned char *private_key;
+	unsigned char *public_key;
+	for(int i = 0; i < PRIVATE_KEY_LEN; i++) {
+		sscanf(strSeed.c_str()+(i*2), "%2hhx", binSeed+i); // Hex string to byte array
+	}
+
+	// Use Crypto++ to generate ED25519 key pair. More information: https://www.cryptopp.com/wiki/Ed25519
+	printf("Generate authentication key pair:\n%d private key + %d bytes public key\n", PRIVATE_KEY_LEN, PUBLIC_KEY_LEN);
+	ed25519::Signer signer(binSeed);
+	const ed25519PrivateKey& privKey = dynamic_cast<const ed25519PrivateKey&>(signer.GetPrivateKey());
+	const Integer& x = privKey.GetPrivateExponent(); // big-endian Integer()
+	cout << "################################" << endl;
+	std::cout << "Private=";
+	//std::cout << hex << x << std::endl;
+	private_key = (unsigned char*)privKey.GetPrivateKeyBytePtr(); // little-endian byte array
+	for(int i = 0; i < PRIVATE_KEY_LEN; i ++){
+		printf("%02X", private_key[i]);
+	}
+	cout << endl;
+
+	ed25519::Verifier verifier(signer);
+	const ed25519PublicKey& pubKey = dynamic_cast<const ed25519PublicKey&>(verifier.GetPublicKey());
+	const Integer& y = pubKey.GetPublicElement(); // big-endian Integer()
+	std::cout << "Public =";
+	//std::cout << std::hex << y << std::endl;
+	public_key = (unsigned char*)pubKey.GetPublicKeyBytePtr(); // little-endian byte array
+	for(int i = 0; i < PUBLIC_KEY_LEN; i ++){
+		printf("%02X", public_key[i]);
+	}
+	cout << endl;
+	cout << "################################" << endl << endl;
 
 	SimpleHttpClient httpClient = SimpleHttpClient(host, port);
 	string strRequestData;
