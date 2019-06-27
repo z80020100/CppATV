@@ -96,6 +96,26 @@ plist_t genAuthStep1Plist(string user) {
 	return plist_root;
 }
 
+plist_t getPlistFromResp(char *respData, int bufLen) {
+	plist_t plist_root;
+	char pBuf[BUF_SIZE] = {0};
+	char *pResponseData;
+	char *pResponseDataLen;
+	uint32_t responseDataLen;
+
+	memcpy(pBuf, respData, BUF_SIZE);
+	pResponseDataLen = strstr(pBuf, "Content-Length:");
+	pResponseDataLen = strtok(pResponseDataLen, " ");
+	pResponseDataLen = strtok(NULL, " \r\n");
+	responseDataLen = atoi(pResponseDataLen);
+	printf("Response data is %d bytes (binary format)\n", responseDataLen);
+
+	memcpy(pBuf, respData, BUF_SIZE);
+	pResponseData = strstr(pBuf, "bplist00");
+	plist_from_bin((const char*)pResponseData, responseDataLen, &plist_root);
+	return plist_root;
+}
+
 int main() {
 	bool debug = true;
 	int ret = -1;
@@ -103,6 +123,7 @@ int main() {
 	char* host = "192.168.0.147";
 	int port = 7000;
 	char pResponseBuf[BUF_SIZE] = {0};
+	char pBuf[BUF_SIZE] = {0};
 
 	string identifier = "FE32DDEADA833CE7"; // Hexadecimal representation of the 8 bytes binary data. (user name)
 	char* pin = "1111"; // ASCII representation. (password)
@@ -167,6 +188,7 @@ int main() {
 		return -1;
 	}
 
+	memset(pResponseBuf, 0, BUF_SIZE);
 	ret = httpClient.recvData(pResponseBuf, BUF_SIZE);
 	if(ret != 1) {
 		printf("Reveive %d bytes data\n", ret);
@@ -180,7 +202,7 @@ int main() {
 		return -1;
 	}
 
-
+	// Step 1 Request
 	unsigned char *plist_bin;
 	char *plist_xml;
 	uint32_t plist_bin_len;
@@ -207,7 +229,10 @@ int main() {
 	}
 
 	strRequestData = genAuthStep1Request(host, port, plist_bin, plist_bin_len);
+	free(plist_bin);
+	free(plist_xml);
 	ret = httpClient.sendData(strRequestData.c_str(), strRequestData.length());
+	plist_free(authStep1Plist);
 	if(ret != 1) {
 		printf("Send %d bytes data\n", ret);
 		if(debug) {
@@ -220,6 +245,8 @@ int main() {
 		return -1;
 	}
 
+	// Step 1 Response
+	memset(pResponseBuf, 0, BUF_SIZE);
 	ret = httpClient.recvData(pResponseBuf, BUF_SIZE);
 	if(ret != 1) {
 		printf("Reveive %d bytes data\n", ret);
@@ -233,9 +260,46 @@ int main() {
 		return -1;
 	}
 
-	free(plist_bin);
-	free(plist_xml);
-	plist_free(authStep1Plist);
+	plist_t authStep1RespPlist = getPlistFromResp(pResponseBuf, BUF_SIZE);
+	if(debug){
+		plist_to_xml(authStep1RespPlist, (char**)&plist_xml, &plist_xml_len);
+		cout << "Convert to XML format to read" << endl;
+		cout << "################################" << endl;
+		cout << plist_xml;
+		cout << "################################" << endl << endl;
+		free(plist_xml);
+	}
+
+	unsigned char *pkData, *saltData;
+	uint64_t pkDataLen = -1, saltDataLen = -1;
+	plist_t pkPlist = plist_dict_get_item(authStep1RespPlist, "pk");
+	plist_t saltPlist = plist_dict_get_item(authStep1RespPlist, "salt");
+	plist_get_data_val(pkPlist, (char**)&pkData, &pkDataLen);
+	plist_get_data_val(saltPlist, (char**)&saltData, &saltDataLen);
+	printf("pkData is %ld bytes\n", pkDataLen);
+	if(debug) {
+		cout << "################################" << endl;
+		for(int i = 0; i < pkDataLen; i++) {
+			printf("%02X ", pkData[i]);
+			if((i+1)%16 == 0 && i != pkDataLen-1)
+				printf("\n");
+		}
+		printf("\n");
+		cout << "################################" << endl << endl;
+	}
+	printf("saltData is %ld bytes\n", saltDataLen);
+	if(debug) {
+		cout << "################################" << endl;
+		for(int i = 0; i < saltDataLen; i++) {
+			printf("%02X ", saltData[i]);
+			if((i+1)%16 == 0 && i != saltDataLen-1)
+				printf("\n");
+		}
+		printf("\n");
+		cout << "################################" << endl << endl;
+	}
+	free(pkData);
+	free(saltData);
 
 	ret = httpClient.tcpDisconnect();
 	printf("Disconnect from %s:%d ", host, port);
