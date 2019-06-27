@@ -2,7 +2,8 @@ SRC         = $(wildcard *.cpp)
 CC          = g++
 INCLUDES    = -I . \
               -I ../include
-LIBS        = -lplist
+LIBS        = -lplist \
+              -lcryptopp
 LIBS_LINK   = -L ../lib
 FLAGS       = -pthread
 TARGET      = cppatv
