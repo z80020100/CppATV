@@ -193,7 +193,7 @@ namespace Ossl
 			x_client = xx;
 		#endif
 			
-		//Calculate S
+		// Calculate S -> premaster_secret in srptools/client.py. exactly "S = (B - (k * g^x)) ^ (a + (u * x)) % N"
 		// SRP-6a safety check
 		if (!BN_is_zero(B) && !BN_is_zero(u))
 		{
@@ -205,7 +205,8 @@ namespace Ossl
 			BN_sub(tmp1, B, tmp3);             /* tmp1 = (B-k*((g^x)%N) */
 			BN_mod_exp(S, tmp1, tmp2, N, ctx); /* S = ((B-k*((g^x)%N)^(a+ux)%N) */
 			
-			// Calculate K
+			// Calculate K -> get_common_session_key(premaster_secret) in srptools/client.py. exactly "K = H(S)"
+			// Note that Apple use special implementation for Apple TV.
 			bytes SS;
 			OsslConversion::bignum2bytes(S, SS);
 			
@@ -375,7 +376,7 @@ namespace Ossl
 		BN_free(tmp2);              
 	}
 	
-	// M = H(H(N) XOR H(g) | H(username) | s | A | B | K)
+	// M = H(H(N) XOR H(g) | H(username) | s | A | B | K) -> get_common_session_key_proof() in srptools/context.py
 	bytes OsslMathImpl::calculateM1(const bytes &username, const bytes &s, const bytes &A, const bytes &B, const bytes &K)
 	{   
 		bytes NN;

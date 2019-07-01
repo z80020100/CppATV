@@ -50,17 +50,17 @@ int main(int argc, char **argv)
 		SrpClientAuthenticator sca = srpclient.getAuthenticator(username, password);
 		
 		// send username and A to server
-		bytes A = sca.getA();
+		bytes A = sca.getA(); // client_public in pyatv/airplay/srp.py. exactly "A = g^a % N"
 		cout << "A (send to server): ";
 		Conversion::printBytes(A);
 		cout << endl;
 		
 		// receive salt and B from server
-		bytes salt = Conversion::readBytesHexForce("salt(from server)");
-		bytes B = Conversion::readBytesHexForce("B(from server)");
+		bytes salt = Conversion::readBytesHexForce("salt(from server)"); // resp['salt'] in pyatv/airplay/auth.py
+		bytes B = Conversion::readBytesHexForce("B(from server)"); // resp['pk'] in pyatv/airplay/auth.py. server public key
 		
 		// send M1 to server
-		bytes M1 = srpclient.getM1(salt, B, sca);
+		bytes M1 = srpclient.getM1(salt, B, sca); // client_session_key_proof in pyatv/airplay/srp.py. exactly "M = H(H(N) XOR H(g) | H(U) | s | A | B | K)"
 		cout << "M1(send to server): ";
 		Conversion::printBytes(M1);
 		cout << endl;
