@@ -28,7 +28,7 @@ int main(int argc, char **argv)
 	try {
 		OsslSha1 hash;
 		OsslRandom random;
-		Ng ng = Ng::predefined(1024);
+		Ng ng = Ng::predefined(2048);
 		OsslMathImpl math(hash, ng);
 		
 		SrpClient srpclient(math, random, false);
