@@ -11,6 +11,19 @@
 
 #include <cryptopp/xed25519.h>
 
+#include "dsrp/srpclient.hpp"
+#include "dsrp/srpclientauthenticator.hpp"
+#include "dsrp/user.hpp"
+#include "dsrp/ng.hpp"
+#include "dsrp/dsrpexception.hpp"
+#include "dsrp/conversionexception.hpp"
+#include "dsrp/usernotfoundexception.hpp"
+#include "dsrp/conversion.hpp"
+
+#include "ossl/osslsha1.hpp"
+#include "ossl/osslmathimpl.hpp"
+#include "ossl/osslrandom.hpp"
+
 #include "simpleHttpClient.hpp"
 #include "atv.hpp"
 
@@ -21,6 +34,8 @@
 
 using namespace std;
 using namespace CryptoPP;
+using namespace DragonSRP;
+using namespace DragonSRP::Ossl;
 
 string genAuthStep0Request(char *host, int port) {
 	// POST /pair-pin-start HTTP/1.1
@@ -125,8 +140,8 @@ int main() {
 	char pResponseBuf[BUF_SIZE] = {0};
 	char pBuf[BUF_SIZE] = {0};
 
-	string identifier = "FE32DDEADA833CE7"; // Hexadecimal representation of the 8 bytes binary data. (user name)
-	char* pin = "1111"; // ASCII representation. (password)
+	string strIdentifier = "3060A5F1D7593682"; // Hexadecimal representation of the 8 bytes binary data. (user name)
+	string strPin = "1111"; // ASCII representation. (password)
 	string strSeed = "8C43FEBD67F4DBB3B2C7FFBB1B7C1E580512823E3B759259E8CB33382A5DA60A"; // It's ed25519 private key exactly, hexadecimal representation
 	byte binSeed[PRIVATE_KEY_LEN] = {0}; // ed25519 private key, binary data, 32 bytes
 	unsigned char *private_key;
@@ -208,7 +223,7 @@ int main() {
 	uint32_t plist_bin_len;
 	uint32_t plist_xml_len;
 
-	plist_t authStep1Plist = genAuthStep1Plist(identifier);
+	plist_t authStep1Plist = genAuthStep1Plist(strIdentifier);
 	plist_to_bin(authStep1Plist, (char**)&plist_bin, &plist_bin_len);
 	plist_to_xml(authStep1Plist, (char**)&plist_xml, &plist_xml_len);
 	printf("Generate %u bytes plist binary data\n", plist_bin_len);
@@ -298,6 +313,32 @@ int main() {
 		printf("\n");
 		cout << "################################" << endl << endl;
 	}
+
+	// Secure Remote Password (SRP6a)
+	OsslSha1 hash;
+	OsslRandom random;
+	Ng ng = Ng::predefined(2048);
+	OsslMathImpl math(hash, ng);
+	SrpClient srpclient(math, random, false);
+
+	cout << "Use fixed ID and PIN for develop" << endl;
+	cout << "################################" << endl;
+	cout << "ID : " << strIdentifier << endl;
+	cout << "PIN: " << strPin << endl;
+	cout << "################################" << endl << endl;
+	bytes username = Conversion::string2bytes(strIdentifier);
+	bytes password = Conversion::string2bytes(strPin);
+	bytes clientPrivate = Conversion::hexstring2bytes(strSeed);
+	SrpClientAuthenticator sca = srpclient.getAuthenticator(username, password, clientPrivate);
+
+	// send username and A to server
+	bytes A = sca.getA(); // client_public in pyatv/airplay/srp.py. exactly "A = g^a % N"
+	cout << "################################" << endl;
+	cout << "Client public: ";
+	Conversion::printBytes(A);
+	cout << endl;
+	cout << "################################" << endl << endl;
+
 	free(pkData);
 	free(saltData);
 

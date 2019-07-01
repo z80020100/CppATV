@@ -45,8 +45,8 @@ TARGET              = cppatv
 
 all: main dsrp ossl dsrp-app
 
-main: $(OBJ_CPPATV)
-	$(CCC) $(OBJ_CPPATV) $(LIB_LOOKUP_DIRS) $(LIBS) $(CCCFLAGS) -o $(TARGET)
+main: $(OBJ_CPPATV) $(OBJ-DSRP) $(OBJ-OSSL)
+	$(CCC) $(OBJ_CPPATV) $(OBJ-DSRP) $(OBJ-OSSL) $(LIB_LOOKUP_DIRS) $(LIBS) $(CCCFLAGS) -o $(TARGET)
 
 #build the object files for dsrp
 dsrp: $(OBJ-DSRP)
