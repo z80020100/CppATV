@@ -370,6 +370,13 @@ int main() {
 	free(saltData);
 	saltData = NULL;
 
+	bytes K = sca.getSessionKeyWithoutAuth();
+	cout << "################################" << endl;
+	cout << "Client session key(shared secret key): ";
+	Conversion::printBytes(K);
+	cout << endl;
+	cout << "################################" << endl << endl;
+
 	// Step 2 Request
 	unsigned char *clientPkData, *proofData;
 	int clientPkDataLen = -1, proofDataLen = -1;
