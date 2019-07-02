@@ -63,7 +63,7 @@ string genAuthStep0Request(char *host, int port) {
 	return ostrStep0Request.str();
 }
 
-string genAuthStep1Request(char *host, int port, unsigned char *plist_bin, uint32_t plist_bin_len) {
+string genAuthStepRequest(char *host, int port, unsigned char *plist_bin, uint32_t plist_bin_len) {
 	// POST /pair-setup-pin HTTP/1.1
 	// Host: 192.168.0.147:7000
 	// Accept-Encoding: gzip, deflate
@@ -107,6 +107,17 @@ plist_t genAuthStep1Plist(string user) {
 	plist_t plist_root = plist_new_dict();
 	plist_dict_set_item(plist_root, "method", plist_item_pin);
 	plist_dict_set_item(plist_root, "user", plist_item_user);
+
+	return plist_root;
+}
+
+plist_t genAuthStep2Plist(const unsigned char* clientPublic, int clientPublicLen, const unsigned char* proof, int proofLen) {
+	plist_t plist_item_client_public = plist_new_data(clientPublic, clientPublicLen);
+	plist_t plist_item_proof = plist_new_data(proof, proofLen);
+
+	plist_t plist_root = plist_new_dict();
+	plist_dict_set_item(plist_root, "pk", plist_item_client_public);
+	plist_dict_set_item(plist_root, "proof", plist_item_proof);
 
 	return plist_root;
 }
@@ -226,6 +237,7 @@ int main() {
 	plist_t authStep1Plist = genAuthStep1Plist(strIdentifier);
 	plist_to_bin(authStep1Plist, (char**)&plist_bin, &plist_bin_len);
 	plist_to_xml(authStep1Plist, (char**)&plist_xml, &plist_xml_len);
+	plist_free(authStep1Plist);
 	printf("Generate %u bytes plist binary data\n", plist_bin_len);
 	if(debug) {
 		cout << "################################" << endl;
@@ -243,13 +255,12 @@ int main() {
 		cout << "################################" << endl << endl;
 	}
 
-	strRequestData = genAuthStep1Request(host, port, plist_bin, plist_bin_len);
+	strRequestData = genAuthStepRequest(host, port, plist_bin, plist_bin_len);
 	free(plist_bin);
 	plist_bin = NULL;
 	free(plist_xml);
 	plist_xml = NULL;
 	ret = httpClient.sendData(strRequestData.c_str(), strRequestData.length());
-	plist_free(authStep1Plist);
 	if(ret != 1) {
 		printf("Send %d bytes data\n", ret);
 		if(debug) {
@@ -344,6 +355,8 @@ int main() {
 	// receive salt and B from server
 	bytes salt = Conversion::array2bytes(saltData, saltDataLen); // resp['salt'] in pyatv/airplay/auth.py
 	bytes B = Conversion::array2bytes(pkData, pkDataLen); // resp['pk'] in pyatv/airplay/auth.py. server public key
+	//bytes salt = Conversion::hexstring2bytes("06f8f26e7a54b9e9d466afa772ec9d41");
+	//bytes B = Conversion::hexstring2bytes("11eed8eaf3b7b4f99b405065f02c574468c064d2281dd21866af52beb376c1ba6096575fe840818b6f55b1e6cc6f818f2f6b26be3b1cf760174d94456e2b2201392af72c63bc15de3bdf0ceee6b2e181b30f3fa9f0587a3120180bcfac9c3331560815b142541bbd684b64519f9e6d9aa19b67b56e4470d3a4c97c217a4e5a001326ccc92915caa68a1683695a9942bf31459684b189e69eb65b60a2d471dc7ec1fe87ae2ec250244f0e76df6b92dc7a62f2b0671da40330f2110cbfa32bb7fcdf502b3e46e8e8d1bdb580dcac84cb121cefe362d3d1c8adccd472529f3d753854bceb55c54feb8e5d8f68bff43469f487dae1001e4f9ecb73173246feda1ee5");
 
 	// send M1 to server
 	bytes M1 = srpclient.getM1(salt, B, sca); // client_session_key_proof in pyatv/airplay/srp.py. exactly "M = H(H(N) XOR H(g) | H(U) | s | A | B | K)"
@@ -356,6 +369,65 @@ int main() {
 	pkData = NULL;
 	free(saltData);
 	saltData = NULL;
+
+	// Step 2 Request
+	unsigned char *clientPkData, *proofData;
+	int clientPkDataLen = -1, proofDataLen = -1;
+	clientPkData = Conversion::bytes2array(A, &clientPkDataLen);
+	proofData = Conversion::bytes2array(M1, &proofDataLen);
+	plist_t authStep2Plist = genAuthStep2Plist(clientPkData, clientPkDataLen, proofData, proofDataLen);
+	plist_to_bin(authStep2Plist, (char**)&plist_bin, &plist_bin_len);
+	plist_to_xml(authStep2Plist, (char**)&plist_xml, &plist_xml_len);
+	plist_free(authStep2Plist);
+	printf("Generate %u bytes plist binary data\n", plist_bin_len);
+	if(debug) {
+		cout << "################################" << endl;
+		for(int i = 0; i < plist_bin_len; i++) {
+			printf("%02X ", plist_bin[i]);
+			if((i+1)%16 == 0 && i != plist_bin_len-1)
+				printf("\n");
+		}
+		printf("\n");
+		cout << "################################" << endl << endl;
+
+		printf("Generate %u bytes plist XML data\n", plist_xml_len);
+		cout << "################################" << endl;
+		cout << plist_xml;
+		cout << "################################" << endl << endl;
+	}
+
+	strRequestData = genAuthStepRequest(host, port, plist_bin, plist_bin_len);
+	free(plist_bin);
+	plist_bin = NULL;
+	free(plist_xml);
+	plist_xml = NULL;
+	ret = httpClient.sendData(strRequestData.c_str(), strRequestData.length());
+	if(ret != 1) {
+		printf("Send %d bytes data\n", ret);
+		if(debug) {
+			cout << "################################" << endl;
+			cout << strRequestData << endl;
+			cout << "################################" << endl << endl;
+		}
+	} else {
+		printf("Send data failed, ret = %d\n", ret);
+		return -1;
+	}
+
+	// Step 2 Response
+	memset(pResponseBuf, 0, BUF_SIZE);
+	ret = httpClient.recvData(pResponseBuf, BUF_SIZE);
+	if(ret != 1) {
+		printf("Reveive %d bytes data\n", ret);
+		if(debug) {
+			cout << "################################" << endl;
+			cout << pResponseBuf << endl;
+			cout << "################################" << endl << endl;
+		}
+	} else {
+		printf("Receive data failed, ret = %d\n", ret);
+		return -1;
+	}
 
 	ret = httpClient.tcpDisconnect();
 	printf("Disconnect from %s:%d ", host, port);
