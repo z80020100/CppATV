@@ -49,6 +49,7 @@ namespace DragonSRP
 			SrpClientAuthenticator(const bytes &userName, const bytes &passWord, const bytes &aa, const bytes &AA);
 			bytes getA();
 			bytes getSessionKey(bytes M2_from_server);
+			bytes getSessionKeyWithoutAuth();
 		
 		private:
 			bytes username;

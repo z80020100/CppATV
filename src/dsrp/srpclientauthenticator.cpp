@@ -55,6 +55,11 @@ namespace DragonSRP
 		if (M2_from_server != M2_calculated) throw DsrpException("Authentification failed, bad password");
 		return K;
 	}
+
+	bytes SrpClientAuthenticator::getSessionKeyWithoutAuth()
+	{
+		return K;
+	}
 	
 	bytes SrpClientAuthenticator::getA()
 	{
