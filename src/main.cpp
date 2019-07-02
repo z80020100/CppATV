@@ -21,6 +21,7 @@
 #include "dsrp/conversion.hpp"
 
 #include "ossl/osslsha1.hpp"
+#include "ossl/osslsha512.hpp"
 #include "ossl/osslmathimpl.hpp"
 #include "ossl/osslrandom.hpp"
 
@@ -435,6 +436,34 @@ int main() {
 		printf("Receive data failed, ret = %d\n", ret);
 		return -1;
 	}
+
+	// Calculate AES key
+	OsslSha512 sha512;
+	bytes aesKeyHashInput = Conversion::string2bytes(APPLE_AES_KEY_HASH_PREFIX);
+	Conversion::append(aesKeyHashInput, K);
+	bytes aesKey;
+	aesKey.resize(sha512.outputLen());
+	sha512.hash(&aesKeyHashInput[0], aesKeyHashInput.size(), &aesKey[0]);
+	aesKey.resize(16);
+	cout << "################################" << endl;
+	cout << "AES key: ";
+	Conversion::printBytes(aesKey);
+	cout << endl;
+	cout << "################################" << endl << endl;
+
+	// Calculate AES IV
+	bytes aesIvHashInput = Conversion::string2bytes(APPLE_AES_IV_HASH_PREFIX);
+	Conversion::append(aesIvHashInput, K);
+	bytes aesIv;
+	aesIv.resize(sha512.outputLen());
+	sha512.hash(&aesIvHashInput[0], aesIvHashInput.size(), &aesIv[0]);
+	aesIv.resize(16);
+	aesIv[aesIv.size()-1]++;
+	cout << "################################" << endl;
+	cout << "AES IV: ";
+	Conversion::printBytes(aesIv);
+	cout << endl;
+	cout << "################################" << endl << endl;
 
 	ret = httpClient.tcpDisconnect();
 	printf("Disconnect from %s:%d ", host, port);
