@@ -93,5 +93,7 @@ clean:
 	rm -f apps/client_test
 	rm -f apps/create_user
 	rm -f apps/benchmark
+	rm -f apps/qtest
+	rm -f apps/rfc_test
 	rm -f apps/*.o
 	rm -f $(TARGET)
