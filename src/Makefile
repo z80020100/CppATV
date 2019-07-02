@@ -12,7 +12,7 @@ LIBS                = -lplist \
                       -lcrypto
 
 CCFLAGS             = -pthread
-CCCFLAGS            = -pthread -std=c++0x -DDSRP_DANGEROUS_TESTING -fpermissive
+CCCFLAGS            = -pthread -std=c++0x -DDSRP_DANGEROUS_TESTING -DATV -fpermissive
 
 OBJ_CPPATV          = main.o \
                       simpleHttpClient.o

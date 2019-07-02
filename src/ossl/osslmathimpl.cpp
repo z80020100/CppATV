@@ -213,9 +213,37 @@ namespace Ossl
 			if (!interleave) 
 			{
 				// REPL: K_out = hash.hash(SS);
-				
+#ifndef ATV
 				K_out.resize(hash.outputLen());
 				hash.hash(&SS[0], SS.size(), &K_out[0]);
+#else
+				// Special implementation for Apple TV
+				bytes K_1, K_2;
+				K_1.resize(hash.outputLen());
+				K_2.resize(hash.outputLen());
+				SS.push_back(0x00);
+				SS.push_back(0x00);
+				SS.push_back(0x00);
+				SS.push_back(0x00);
+				hash.hash(&SS[0], SS.size(), &K_1[0]);
+				//std::cout << "K_1: ";
+				//Conversion::printBytes(K_1);
+				//std::cout << std::endl;
+
+				SS.pop_back();
+				SS.push_back(0x01);
+				hash.hash(&SS[0], SS.size(), &K_2[0]);
+				//std::cout << "K_2: ";
+				//Conversion::printBytes(K_2);
+				//std::cout << std::endl;
+
+				K_out.clear();
+				Conversion::append(K_out, K_1);
+				Conversion::append(K_out, K_2);
+				//std::cout << "K_out: ";
+				//Conversion::printBytes(K_out);
+				//std::cout << std::endl;
+#endif
 			}
 			else interleaveS(SS, K_out);
 		
