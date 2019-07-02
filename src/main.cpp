@@ -291,13 +291,13 @@ int main() {
 	plist_t saltPlist = plist_dict_get_item(authStep1RespPlist, "salt");
 	plist_get_data_val(pkPlist, (char**)&pkData, &pkDataLen);
 	plist_get_data_val(saltPlist, (char**)&saltData, &saltDataLen);
-	printf("pkData is %ld bytes\n", pkDataLen);
+	printf("pkData(B from server) is %ld bytes\n", pkDataLen);
 	if(debug) {
 		cout << "################################" << endl;
 		for(int i = 0; i < pkDataLen; i++) {
-			printf("%02X ", pkData[i]);
-			if((i+1)%16 == 0 && i != pkDataLen-1)
-				printf("\n");
+			printf("%02X", pkData[i]);
+			//if((i+1)%16 == 0 && i != pkDataLen-1)
+				//printf("\n");
 		}
 		printf("\n");
 		cout << "################################" << endl << endl;
@@ -306,9 +306,9 @@ int main() {
 	if(debug) {
 		cout << "################################" << endl;
 		for(int i = 0; i < saltDataLen; i++) {
-			printf("%02X ", saltData[i]);
-			if((i+1)%16 == 0 && i != saltDataLen-1)
-				printf("\n");
+			printf("%02X", saltData[i]);
+			//if((i+1)%16 == 0 && i != saltDataLen-1)
+				//printf("\n");
 		}
 		printf("\n");
 		cout << "################################" << endl << endl;
@@ -334,11 +334,22 @@ int main() {
 	// send username and A to server
 	bytes A = sca.getA(); // client_public in pyatv/airplay/srp.py. exactly "A = g^a % N"
 	cout << "################################" << endl;
-	cout << "Client public: ";
+	cout << "Client public(A to server): ";
 	Conversion::printBytes(A);
 	cout << endl;
 	cout << "################################" << endl << endl;
 
+	// receive salt and B from server
+	bytes salt = Conversion::array2bytes(saltData, saltDataLen); // resp['salt'] in pyatv/airplay/auth.py
+	bytes B = Conversion::array2bytes(pkData, pkDataLen); // resp['pk'] in pyatv/airplay/auth.py. server public key
+
+	// send M1 to server
+	bytes M1 = srpclient.getM1(salt, B, sca); // client_session_key_proof in pyatv/airplay/srp.py. exactly "M = H(H(N) XOR H(g) | H(U) | s | A | B | K)"
+	cout << "################################" << endl;
+	cout << "Proof(M1 to server): ";
+	Conversion::printBytes(M1);
+	cout << endl;
+	cout << "################################" << endl << endl;
 	free(pkData);
 	free(saltData);
 
