@@ -218,10 +218,10 @@ int main() {
 	}
 
 	// Step 1 Request
-	unsigned char *plist_bin;
-	char *plist_xml;
-	uint32_t plist_bin_len;
-	uint32_t plist_xml_len;
+	unsigned char *plist_bin = NULL;
+	char *plist_xml = NULL;
+	uint32_t plist_bin_len = 0;
+	uint32_t plist_xml_len = 0;
 
 	plist_t authStep1Plist = genAuthStep1Plist(strIdentifier);
 	plist_to_bin(authStep1Plist, (char**)&plist_bin, &plist_bin_len);
@@ -245,7 +245,9 @@ int main() {
 
 	strRequestData = genAuthStep1Request(host, port, plist_bin, plist_bin_len);
 	free(plist_bin);
+	plist_bin = NULL;
 	free(plist_xml);
+	plist_xml = NULL;
 	ret = httpClient.sendData(strRequestData.c_str(), strRequestData.length());
 	plist_free(authStep1Plist);
 	if(ret != 1) {
@@ -285,8 +287,8 @@ int main() {
 		free(plist_xml);
 	}
 
-	unsigned char *pkData, *saltData;
-	uint64_t pkDataLen = -1, saltDataLen = -1;
+	unsigned char *pkData = NULL, *saltData = NULL;
+	uint64_t pkDataLen = 0, saltDataLen = 0;
 	plist_t pkPlist = plist_dict_get_item(authStep1RespPlist, "pk");
 	plist_t saltPlist = plist_dict_get_item(authStep1RespPlist, "salt");
 	plist_get_data_val(pkPlist, (char**)&pkData, &pkDataLen);
@@ -351,7 +353,9 @@ int main() {
 	cout << endl;
 	cout << "################################" << endl << endl;
 	free(pkData);
+	pkData = NULL;
 	free(saltData);
+	saltData = NULL;
 
 	ret = httpClient.tcpDisconnect();
 	printf("Disconnect from %s:%d ", host, port);
