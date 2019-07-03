@@ -103,6 +103,34 @@ string genAuthStepRequest(char *host, int port, unsigned char *plist_bin, uint32
 	return ostrRequest.str().append((const char*)plist_bin, plist_bin_len);
 }
 
+string genVerifyStepRequest(char *host, int port, unsigned char *verify1_data, uint32_t verify1_data_len) {
+	// POST /pair-verify HTTP/1.1
+	// Host: 192.168.0.147:7000
+	// Content-Type: application/octet-stream
+	// Connection: keep-alive
+	// User-Agent: AirPlay/320.20
+	// Accept: */*
+	// Accept-Encoding: gzip, deflate
+	// Content-Length: 68
+	// binary data
+
+	ostringstream ostrRequest;
+	string UrlStr = APPLE_URL_PAIR_VERIFY;
+
+	ostrRequest << HTTP_REQUEST_METHOD_POST << " " << UrlStr << " " << HTTP_PROTOCOL_VERSION << "\r\n";
+	ostrRequest << "Host: " << host << ":" << port << "\r\n";
+	ostrRequest << "Content-Type: application/octet-stream" << "\r\n";
+	ostrRequest << "Connection: keep-alive" << "\r\n";
+	ostrRequest << "User-Agent: AirPlay/320.20" << "\r\n";
+	ostrRequest << "Accept: */*" << "\r\n";
+	ostrRequest << "Accept-Encoding: gzip, deflate" << "\r\n";
+	ostrRequest << "Content-Length: " << verify1_data_len << "\r\n";
+
+	ostrRequest << "\r\n";
+
+	return ostrRequest.str().append((const char*)verify1_data, verify1_data_len);
+}
+
 plist_t genAuthStep1Plist(string user) {
 	// XML format:
 	// <?xml version="1.0" encoding="UTF-8"?>
@@ -608,6 +636,39 @@ int main() {
 	Conversion::printBytes(clientVerifyPublic);
 	cout << endl;
 	cout << "################################" << endl << endl;
+
+	// Verification Step 1 Request
+	bytes clientAuthPublic = Conversion::array2bytes(public_key, PUBLIC_KEY_LEN);
+	bytes verify1Data;
+	verify1Data.push_back(0x01);
+	verify1Data.push_back(0x00);
+	verify1Data.push_back(0x00);
+	verify1Data.push_back(0x00);
+	Conversion::append(verify1Data, clientVerifyPublic);
+	Conversion::append(verify1Data, clientAuthPublic);
+	cout << "################################" << endl;
+	cout << "Client verify step 1 data: ";
+	Conversion::printBytes(verify1Data);
+	cout << endl;
+	cout << "################################" << endl << endl;
+
+	strRequestData = genVerifyStepRequest(host, port, &verify1Data[0], verify1Data.size());
+	free(plist_bin);
+	plist_bin = NULL;
+	free(plist_xml);
+	plist_xml = NULL;
+	ret = httpClient.sendData(strRequestData.c_str(), strRequestData.length());
+	if(ret != 1) {
+		printf("Send %d bytes data\n", ret);
+		if(debug) {
+			cout << "################################" << endl;
+			cout << strRequestData << endl;
+			cout << "################################" << endl << endl;
+		}
+	} else {
+		printf("Send data failed, ret = %d\n", ret);
+		return -1;
+	}
 
 	ret = httpClient.tcpDisconnect();
 	printf("Disconnect from %s:%d ", host, port);
