@@ -252,6 +252,11 @@ int main() {
 		return -1;
 	}
 
+	strPin.clear();
+	cout << "Enter PIN on screen: ";
+	cin >> strPin;
+	cin.ignore();
+
 	// Step 1 Request
 	unsigned char *plist_bin = NULL;
 	char *plist_xml = NULL;
