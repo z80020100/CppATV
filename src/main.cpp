@@ -9,7 +9,11 @@
 
 #include <plist/plist.h>
 
+#include <cryptopp/aes.h>
+#include <cryptopp/cryptlib.h>
+#include <cryptopp/filters.h>
 #include <cryptopp/xed25519.h>
+#include <cryptopp/gcm.h>
 
 #include "dsrp/srpclient.hpp"
 #include "dsrp/srpclientauthenticator.hpp"
@@ -32,11 +36,19 @@
 
 #define PRIVATE_KEY_LEN ed25519PrivateKey::SECRET_KEYLENGTH
 #define PUBLIC_KEY_LEN  ed25519PrivateKey::PUBLIC_KEYLENGTH
+#define AES_GCM_TAG_LEN 16
 
 using namespace std;
 using namespace CryptoPP;
 using namespace DragonSRP;
 using namespace DragonSRP::Ossl;
+
+using CryptoPP::AES;
+using CryptoPP::AuthenticatedEncryptionFilter;
+using CryptoPP::AuthenticatedDecryptionFilter;
+using CryptoPP::GCM;
+using CryptoPP::StringSink;
+using CryptoPP::StringSource;
 
 string genAuthStep0Request(char *host, int port) {
 	// POST /pair-pin-start HTTP/1.1
@@ -462,6 +474,36 @@ int main() {
 	cout << "################################" << endl;
 	cout << "AES IV: ";
 	Conversion::printBytes(aesIv);
+	cout << endl;
+	cout << "################################" << endl << endl;
+
+	// Encrypt client public key via GCM AES, ciphertext with tag
+	string ciphertext;
+	string plaintext((const char*)public_key, PUBLIC_KEY_LEN);
+	GCM<AES>::Encryption enc;
+	enc.SetKeyWithIV(&aesKey[0], aesKey.size(), &aesIv[0], aesIv.size());
+
+	AuthenticatedEncryptionFilter aef(enc,
+		new StringSink(ciphertext)
+	);
+
+	aef.Put(plaintext.data(), plaintext.size());
+	aef.MessageEnd();
+
+	bytes epk, tag;
+	int epkLen = ciphertext.length() - AES_GCM_TAG_LEN;
+	int tagLen = AES_GCM_TAG_LEN;
+	epk = Conversion::array2bytes(ciphertext.c_str(), epkLen);
+	cout << "################################" << endl;
+	cout << "EPK: ";
+	Conversion::printBytes(epk);
+	cout << endl;
+	cout << "################################" << endl << endl;
+
+	tag = Conversion::array2bytes(ciphertext.c_str() + epkLen, tagLen);
+	cout << "################################" << endl;
+	cout << "Tag: ";
+	Conversion::printBytes(tag);
 	cout << endl;
 	cout << "################################" << endl << endl;
 
