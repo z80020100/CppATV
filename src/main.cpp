@@ -196,6 +196,27 @@ plist_t getPlistFromResp(char *respData, int bufLen) {
 	return plist_root;
 }
 
+bytes getBinaryFromResp(char *respData, int bufLen) {
+	bytes data;
+	char pBuf[BUF_SIZE] = {0};
+	char *pResponseData;
+	char *pResponseDataLen;
+	uint32_t responseDataLen;
+
+	memcpy(pBuf, respData, BUF_SIZE);
+	pResponseDataLen = strstr(pBuf, "Content-Length:");
+	pResponseDataLen = strtok(pResponseDataLen, " ");
+	pResponseDataLen = strtok(NULL, " \r\n");
+	responseDataLen = atoi(pResponseDataLen);
+	printf("Response data is %d bytes (binary format)\n", responseDataLen);
+
+	memcpy(pBuf, respData, BUF_SIZE);
+	pResponseData = strstr(pBuf, "\r\n\r\n");
+	pResponseData += 4;
+	data = Conversion::array2bytes(pResponseData, responseDataLen);
+	return data;
+}
+
 bytes genCurve25519Private(string strSeed) {
 	bytes verifyPrivateKey = Conversion::hexstring2bytes(strSeed);
 	verifyPrivateKey[0] &= 248;
@@ -669,6 +690,43 @@ int main() {
 		printf("Send data failed, ret = %d\n", ret);
 		return -1;
 	}
+
+	// Verification Step 1 Response
+	memset(pResponseBuf, 0, BUF_SIZE);
+	ret = httpClient.recvData(pResponseBuf, BUF_SIZE);
+	if(ret != 1) {
+		printf("Reveive %d bytes data\n", ret);
+		if(debug) {
+			cout << "################################" << endl;
+			cout << pResponseBuf << endl;
+			cout << "################################" << endl << endl;
+		}
+	} else {
+		printf("Receive data failed, ret = %d\n", ret);
+		return -1;
+	}
+	bytes verify1RespData = getBinaryFromResp(pResponseBuf, BUF_SIZE);
+	//bytes verify1RespData = Conversion::hexstring2bytes("1a57c79b84936a4996b952072ef2402a0ea2ea4c608482da836c31820e532434be43895597c641d18cf6beda48dcb91a0143c5e118cf9b28cf3ca83ce4408622d845c697c11f5a8950936ac37868b4d4db918aa19aed958b4c8b9450254362a0");
+	cout << "################################" << endl;
+	cout << "Client verify step 1 resp data: ";
+	Conversion::printBytes(verify1RespData);
+	cout << endl;
+	cout << "################################" << endl << endl;
+
+	bytes serverVerifyPublic = Conversion::array2bytes(&verify1RespData[0], PUBLIC_KEY_LEN);
+	cout << "################################" << endl;
+	cout << "Server verify public: ";
+	Conversion::printBytes(serverVerifyPublic);
+	cout << endl;
+	cout << "################################" << endl << endl;
+
+	int serverRespDataLen = verify1RespData.size() - PUBLIC_KEY_LEN;
+	bytes serverRespData = Conversion::array2bytes(&verify1RespData[0] + PUBLIC_KEY_LEN, serverRespDataLen);
+	cout << "################################" << endl;
+	cout << "Server response data in verify step 1: ";
+	Conversion::printBytes(serverRespData);
+	cout << endl;
+	cout << "################################" << endl << endl;
 
 	ret = httpClient.tcpDisconnect();
 	printf("Disconnect from %s:%d ", host, port);
