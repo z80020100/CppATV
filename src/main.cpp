@@ -135,6 +135,17 @@ plist_t genAuthStep2Plist(const unsigned char* clientPublic, int clientPublicLen
 	return plist_root;
 }
 
+plist_t genAuthStep3Plist(const unsigned char* epk, int epkLen, const unsigned char* tag, int tagLen) {
+	plist_t plist_item_epk = plist_new_data(epk, epkLen);
+	plist_t plist_item_tag = plist_new_data(tag, tagLen);
+
+	plist_t plist_root = plist_new_dict();
+	plist_dict_set_item(plist_root, "epk", plist_item_epk);
+	plist_dict_set_item(plist_root, "authTag", plist_item_tag);
+
+	return plist_root;
+}
+
 plist_t getPlistFromResp(char *respData, int bufLen) {
 	plist_t plist_root;
 	char pBuf[BUF_SIZE] = {0};
@@ -506,6 +517,65 @@ int main() {
 	Conversion::printBytes(tag);
 	cout << endl;
 	cout << "################################" << endl << endl;
+
+	// Step 3 Request
+	unsigned char *epkData, *tagData;
+	int epkDataLen = -1, tagDataLen = -1;
+	epkData = Conversion::bytes2array(epk, &epkDataLen);
+	tagData = Conversion::bytes2array(tag, &tagDataLen);
+	plist_t authStep3Plist = genAuthStep3Plist(epkData, epkDataLen, tagData, tagDataLen);
+	plist_to_bin(authStep3Plist, (char**)&plist_bin, &plist_bin_len);
+	plist_to_xml(authStep3Plist, (char**)&plist_xml, &plist_xml_len);
+	plist_free(authStep3Plist);
+	printf("Generate %u bytes plist binary data\n", plist_bin_len);
+	if(debug) {
+		cout << "################################" << endl;
+		for(int i = 0; i < plist_bin_len; i++) {
+			printf("%02X ", plist_bin[i]);
+			if((i+1)%16 == 0 && i != plist_bin_len-1)
+				printf("\n");
+		}
+		printf("\n");
+		cout << "################################" << endl << endl;
+
+		printf("Generate %u bytes plist XML data\n", plist_xml_len);
+		cout << "################################" << endl;
+		cout << plist_xml;
+		cout << "################################" << endl << endl;
+	}
+
+	strRequestData = genAuthStepRequest(host, port, plist_bin, plist_bin_len);
+	free(plist_bin);
+	plist_bin = NULL;
+	free(plist_xml);
+	plist_xml = NULL;
+	ret = httpClient.sendData(strRequestData.c_str(), strRequestData.length());
+	if(ret != 1) {
+		printf("Send %d bytes data\n", ret);
+		if(debug) {
+			cout << "################################" << endl;
+			cout << strRequestData << endl;
+			cout << "################################" << endl << endl;
+		}
+	} else {
+		printf("Send data failed, ret = %d\n", ret);
+		return -1;
+	}
+
+	// Step 3 Response
+	memset(pResponseBuf, 0, BUF_SIZE);
+	ret = httpClient.recvData(pResponseBuf, BUF_SIZE);
+	if(ret != 1) {
+		printf("Reveive %d bytes data\n", ret);
+		if(debug) {
+			cout << "################################" << endl;
+			cout << pResponseBuf << endl;
+			cout << "################################" << endl << endl;
+		}
+	} else {
+		printf("Receive data failed, ret = %d\n", ret);
+		return -1;
+	}
 
 	ret = httpClient.tcpDisconnect();
 	printf("Disconnect from %s:%d ", host, port);
