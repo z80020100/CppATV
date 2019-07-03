@@ -11,6 +11,7 @@
 
 #include <cryptopp/aes.h>
 #include <cryptopp/cryptlib.h>
+#include <cryptopp/donna.h>
 #include <cryptopp/filters.h>
 #include <cryptopp/xed25519.h>
 #include <cryptopp/gcm.h>
@@ -46,6 +47,7 @@ using namespace DragonSRP::Ossl;
 using CryptoPP::AES;
 using CryptoPP::AuthenticatedEncryptionFilter;
 using CryptoPP::AuthenticatedDecryptionFilter;
+using CryptoPP::Donna::curve25519_mult;
 using CryptoPP::GCM;
 using CryptoPP::StringSink;
 using CryptoPP::StringSource;
@@ -164,6 +166,14 @@ plist_t getPlistFromResp(char *respData, int bufLen) {
 	pResponseData = strstr(pBuf, "bplist00");
 	plist_from_bin((const char*)pResponseData, responseDataLen, &plist_root);
 	return plist_root;
+}
+
+bytes genCurve25519Private(string strSeed) {
+	bytes verifyPrivateKey = Conversion::hexstring2bytes(strSeed);
+	verifyPrivateKey[0] &= 248;
+	verifyPrivateKey[31] &= 127;
+	verifyPrivateKey[31] |= 64;
+	return verifyPrivateKey;
 }
 
 int main() {
@@ -581,6 +591,23 @@ int main() {
 		printf("Receive data failed, ret = %d\n", ret);
 		return -1;
 	}
+
+	// Verification: calculate verification key pair
+	bytes clientVerifyPrivate = genCurve25519Private(strSeed);
+	cout << "################################" << endl;
+	cout << "Client verify private: ";
+	Conversion::printBytes(clientVerifyPrivate);
+	cout << endl;
+	cout << "################################" << endl << endl;
+
+	bytes clientVerifyPublic;
+	clientVerifyPublic.resize(PUBLIC_KEY_LEN);
+	ret = curve25519_mult(&clientVerifyPublic[0], &clientVerifyPrivate[0]);
+	cout << "################################" << endl;
+	cout << "Client verify public: ";
+	Conversion::printBytes(clientVerifyPublic);
+	cout << endl;
+	cout << "################################" << endl << endl;
 
 	ret = httpClient.tcpDisconnect();
 	printf("Disconnect from %s:%d ", host, port);
