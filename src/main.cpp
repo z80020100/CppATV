@@ -37,6 +37,7 @@
 
 #define PRIVATE_KEY_LEN ed25519PrivateKey::SECRET_KEYLENGTH
 #define PUBLIC_KEY_LEN  ed25519PrivateKey::PUBLIC_KEYLENGTH
+#define SHARED_KEY_LEN  x25519::SHARED_KEYLENGTH
 #define AES_GCM_TAG_LEN 16
 
 using namespace std;
@@ -652,11 +653,16 @@ int main() {
 	bytes clientVerifyPublic;
 	clientVerifyPublic.resize(PUBLIC_KEY_LEN);
 	ret = curve25519_mult(&clientVerifyPublic[0], &clientVerifyPrivate[0]);
-	cout << "################################" << endl;
-	cout << "Client verify public: ";
-	Conversion::printBytes(clientVerifyPublic);
-	cout << endl;
-	cout << "################################" << endl << endl;
+	if(ret == 0) {
+		cout << "################################" << endl;
+		cout << "Client verify public: ";
+		Conversion::printBytes(clientVerifyPublic);
+		cout << endl;
+		cout << "################################" << endl << endl;
+	} else {
+		printf("Calculate verify public key failed, ret = %d\n", ret);
+		return -1;
+	}
 
 	// Verification Step 1 Request
 	bytes clientAuthPublic = Conversion::array2bytes(public_key, PUBLIC_KEY_LEN);
@@ -727,6 +733,21 @@ int main() {
 	Conversion::printBytes(serverRespData);
 	cout << endl;
 	cout << "################################" << endl << endl;
+
+	// Generate a shared secret key for verification
+	bytes authShared;
+	authShared.resize(SHARED_KEY_LEN);
+	ret = curve25519_mult(&authShared[0], &clientVerifyPrivate[0], &serverVerifyPublic[0]);
+	if(ret == 0) {
+		cout << "################################" << endl;
+		cout << "Verify shared key: ";
+		Conversion::printBytes(authShared);
+		cout << endl;
+		cout << "################################" << endl << endl;
+	} else {
+		printf("Calculate verify shared key failed, ret = %d\n", ret);
+		return -1;
+	}
 
 	ret = httpClient.tcpDisconnect();
 	printf("Disconnect from %s:%d ", host, port);
