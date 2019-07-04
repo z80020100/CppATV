@@ -793,6 +793,27 @@ int main() {
 	cout << endl;
 	cout << "################################" << endl << endl;
 
+	// Generate signature via encrypting server response data + signed public key with CTR AES
+	ciphertext.clear();
+	plaintext.clear();
+	plaintext.append(&serverRespData[0], serverRespData.size());
+	plaintext.append(&signature[0], signature.size());
+	CTR_Mode<AES>::Encryption encAesCtr;
+	encAesCtr.SetKeyWithIV(&aesKeyVerify[0], aesKeyVerify.size(), &aesIvVerify[0], aesIvVerify.size());
+	StringSource(plaintext, true,
+		new StreamTransformationFilter(encAesCtr,
+			new StringSink(ciphertext)
+		) // StreamTransformationFilter
+	); // StringSource
+	// Apple use the last 64 bytes as signature
+	int offset = ciphertext.size() - 64;
+	bytes finalSignature = Conversion::array2bytes(ciphertext.c_str() + offset, 64); 
+	cout << "################################" << endl;
+	cout << "Final signature for verification: ";
+	Conversion::printBytes(finalSignature);
+	cout << endl;
+	cout << "################################" << endl << endl;
+
 	ret = httpClient.tcpDisconnect();
 	printf("Disconnect from %s:%d ", host, port);
 	if(ret == 0) {
