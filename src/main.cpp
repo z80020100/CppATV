@@ -525,9 +525,9 @@ int main() {
 		return -1;
 	}
 
-	// Calculate AES key
+	// Calculate AES key from session key for authentication
 	OsslSha512 sha512;
-	bytes aesKeyHashInput = Conversion::string2bytes(APPLE_AES_KEY_HASH_PREFIX);
+	bytes aesKeyHashInput = Conversion::string2bytes(APPLE_AUTH_AES_KEY_HASH_PREFIX);
 	Conversion::append(aesKeyHashInput, K);
 	bytes aesKey;
 	aesKey.resize(sha512.outputLen());
@@ -539,8 +539,8 @@ int main() {
 	cout << endl;
 	cout << "################################" << endl << endl;
 
-	// Calculate AES IV
-	bytes aesIvHashInput = Conversion::string2bytes(APPLE_AES_IV_HASH_PREFIX);
+	// Calculate AES IV from session key for authentication
+	bytes aesIvHashInput = Conversion::string2bytes(APPLE_AUTH_AES_IV_HASH_PREFIX);
 	Conversion::append(aesIvHashInput, K);
 	bytes aesIv;
 	aesIv.resize(sha512.outputLen());
@@ -748,6 +748,32 @@ int main() {
 		printf("Calculate verify shared key failed, ret = %d\n", ret);
 		return -1;
 	}
+
+	// Calculate AES key from shared key for verification
+	bytes aesKeyVerifyHashInput = Conversion::string2bytes(APPLE_VERIFY_AES_KEY_HASH_PREFIX);
+	Conversion::append(aesKeyVerifyHashInput, authShared);
+	bytes aesKeyVerify;
+	aesKeyVerify.resize(sha512.outputLen());
+	sha512.hash(&aesKeyVerifyHashInput[0], aesKeyVerifyHashInput.size(), &aesKeyVerify[0]);
+	aesKeyVerify.resize(16);
+	cout << "################################" << endl;
+	cout << "AES key for verification: ";
+	Conversion::printBytes(aesKeyVerify);
+	cout << endl;
+	cout << "################################" << endl << endl;
+
+	// Calculate AES IV from shared key for verification
+	bytes aesIvVerifyHashInput = Conversion::string2bytes(APPLE_VERIFY_AES_IV_HASH_PREFIX);
+	Conversion::append(aesIvVerifyHashInput, authShared);
+	bytes aesIvVerify;
+	aesIvVerify.resize(sha512.outputLen());
+	sha512.hash(&aesIvVerifyHashInput[0], aesIvVerifyHashInput.size(), &aesIvVerify[0]);
+	aesIvVerify.resize(16);
+	cout << "################################" << endl;
+	cout << "AES IV for verification:: ";
+	Conversion::printBytes(aesIvVerify);
+	cout << endl;
+	cout << "################################" << endl << endl;
 
 	ret = httpClient.tcpDisconnect();
 	printf("Disconnect from %s:%d ", host, port);
