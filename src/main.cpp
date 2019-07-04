@@ -133,6 +133,32 @@ string genVerifyStepRequest(char *host, int port, unsigned char *verify1_data, u
 	return ostrRequest.str().append((const char*)verify1_data, verify1_data_len);
 }
 
+string genPlayUrlRequest(char *host, int port, unsigned char *plist_bin, uint32_t plist_bin_len) {
+	// POST /play HTTP/1.1
+	// Host: 192.168.0.147:7000
+	// Content-Type: application/x-apple-binary-plist
+	// User-Agent: MediaControl/1.0
+	// Accept-Encoding: gzip, deflate
+	// Accept: */*
+	// Content-Length: plist_bin_len
+	// plist binary data
+
+	ostringstream ostrRequest;
+	string UrlStr = APPLE_URL_PLAY;
+
+	ostrRequest << HTTP_REQUEST_METHOD_POST << " " << UrlStr << " " << HTTP_PROTOCOL_VERSION << "\r\n";
+	ostrRequest << "Host: " << host << ":" << port << "\r\n";
+	ostrRequest << "Content-Type: application/x-apple-binary-plist" << "\r\n";
+	ostrRequest << "User-Agent: MediaControl/1.0" << "\r\n";
+	ostrRequest << "Accept-Encoding: gzip, deflate" << "\r\n";
+	ostrRequest << "Accept: */*" << "\r\n";
+	ostrRequest << "Content-Length: " << plist_bin_len << "\r\n";
+
+	ostrRequest << "\r\n";
+
+	return ostrRequest.str().append((const char*)plist_bin, plist_bin_len);
+}
+
 plist_t genAuthStep1Plist(string user) {
 	// XML format:
 	// <?xml version="1.0" encoding="UTF-8"?>
@@ -174,6 +200,17 @@ plist_t genAuthStep3Plist(const unsigned char* epk, int epkLen, const unsigned c
 	plist_t plist_root = plist_new_dict();
 	plist_dict_set_item(plist_root, "epk", plist_item_epk);
 	plist_dict_set_item(plist_root, "authTag", plist_item_tag);
+
+	return plist_root;
+}
+
+plist_t genPlayUrlPlist(string url, int startPos){
+	plist_t plist_item_url = plist_new_string(url.c_str());
+	plist_t plist_item_pos = plist_new_string(to_string(startPos).c_str());
+
+	plist_t plist_root = plist_new_dict();
+	plist_dict_set_item(plist_root, "Content-Location", plist_item_url);
+	plist_dict_set_item(plist_root, "Start-Position", plist_item_pos);
 
 	return plist_root;
 }
@@ -850,6 +887,45 @@ int main() {
 	} else {
 		printf("Receive data failed, ret = %d\n", ret);
 		return -1;
+	}
+
+	// Request Apple TV to play a URL
+	plist_t playUrlPlist = genPlayUrlPlist("https://p-events-delivery.akamaized.net/18oijbasfvuhbfsdvoijhbsdfvljkb6/m3u8/hls_vod_mvp.m3u8", 0);
+	plist_to_bin(playUrlPlist, (char**)&plist_bin, &plist_bin_len);
+
+	strRequestData = genPlayUrlRequest(host, port, plist_bin, plist_bin_len);
+	free(plist_bin);
+	plist_bin = NULL;
+	ret = httpClient.sendData(strRequestData.c_str(), strRequestData.length());
+	if(ret != 1) {
+		printf("Send %d bytes data\n", ret);
+		if(debug) {
+			cout << "################################" << endl;
+			cout << strRequestData << endl;
+			cout << "################################" << endl << endl;
+		}
+	} else {
+		printf("Send data failed, ret = %d\n", ret);
+		return -1;
+	}
+
+	// Apple TV response for play URL request
+	memset(pResponseBuf, 0, BUF_SIZE);
+	ret = httpClient.recvData(pResponseBuf, BUF_SIZE);
+	if(ret != 1) {
+		printf("Reveive %d bytes data\n", ret);
+		if(debug) {
+			cout << "################################" << endl;
+			cout << pResponseBuf << endl;
+			cout << "################################" << endl << endl;
+		}
+	} else {
+		printf("Receive data failed, ret = %d\n", ret);
+		return -1;
+	}
+
+	while(true){
+		sleep(1);
 	}
 
 	ret = httpClient.tcpDisconnect();
