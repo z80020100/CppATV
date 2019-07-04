@@ -681,10 +681,6 @@ int main() {
 	cout << "################################" << endl << endl;
 
 	strRequestData = genVerifyStepRequest(host, port, &verify1Data[0], verify1Data.size());
-	free(plist_bin);
-	plist_bin = NULL;
-	free(plist_xml);
-	plist_xml = NULL;
 	ret = httpClient.sendData(strRequestData.c_str(), strRequestData.length());
 	if(ret != 1) {
 		printf("Send %d bytes data\n", ret);
@@ -813,6 +809,48 @@ int main() {
 	Conversion::printBytes(finalSignature);
 	cout << endl;
 	cout << "################################" << endl << endl;
+
+	// Verification Step 2 Request
+	bytes verify2Data;
+	verify2Data.push_back(0x00);
+	verify2Data.push_back(0x00);
+	verify2Data.push_back(0x00);
+	verify2Data.push_back(0x00);
+	Conversion::append(verify2Data, finalSignature);
+	cout << "################################" << endl;
+	cout << "Client verify step 2 data: ";
+	Conversion::printBytes(verify2Data);
+	cout << endl;
+	cout << "################################" << endl << endl;
+
+	strRequestData = genVerifyStepRequest(host, port, &verify2Data[0], verify2Data.size());
+	ret = httpClient.sendData(strRequestData.c_str(), strRequestData.length());
+	if(ret != 1) {
+		printf("Send %d bytes data\n", ret);
+		if(debug) {
+			cout << "################################" << endl;
+			cout << strRequestData << endl;
+			cout << "################################" << endl << endl;
+		}
+	} else {
+		printf("Send data failed, ret = %d\n", ret);
+		return -1;
+	}
+
+	// Verification Step 2 Response
+	memset(pResponseBuf, 0, BUF_SIZE);
+	ret = httpClient.recvData(pResponseBuf, BUF_SIZE);
+	if(ret != 1) {
+		printf("Reveive %d bytes data\n", ret);
+		if(debug) {
+			cout << "################################" << endl;
+			cout << pResponseBuf << endl;
+			cout << "################################" << endl << endl;
+		}
+	} else {
+		printf("Receive data failed, ret = %d\n", ret);
+		return -1;
+	}
 
 	ret = httpClient.tcpDisconnect();
 	printf("Disconnect from %s:%d ", host, port);
