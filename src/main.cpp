@@ -13,8 +13,9 @@
 #include <cryptopp/cryptlib.h>
 #include <cryptopp/donna.h>
 #include <cryptopp/filters.h>
-#include <cryptopp/xed25519.h>
 #include <cryptopp/gcm.h>
+#include <cryptopp/osrng.h>
+#include <cryptopp/xed25519.h>
 
 #include "dsrp/srpclient.hpp"
 #include "dsrp/srpclientauthenticator.hpp"
@@ -712,7 +713,7 @@ int main() {
 		return -1;
 	}
 	bytes verify1RespData = getBinaryFromResp(pResponseBuf, BUF_SIZE);
-	//bytes verify1RespData = Conversion::hexstring2bytes("1a57c79b84936a4996b952072ef2402a0ea2ea4c608482da836c31820e532434be43895597c641d18cf6beda48dcb91a0143c5e118cf9b28cf3ca83ce4408622d845c697c11f5a8950936ac37868b4d4db918aa19aed958b4c8b9450254362a0");
+	//bytes verify1RespData = Conversion::hexstring2bytes("064e1654f604e59bd15a883bfe80e9fefa15f8da0df92aae1d1712879ce92c71aeac5c5ba7f4b730628ca2a8094d7f6faf7a255873cf0d58fc20068087951717f6bfec43219a9413dfbd700099c67164f34d843f047ddadc5667d44e969907e1");
 	cout << "################################" << endl;
 	cout << "Client verify step 1 resp data: ";
 	Conversion::printBytes(verify1RespData);
@@ -770,8 +771,25 @@ int main() {
 	sha512.hash(&aesIvVerifyHashInput[0], aesIvVerifyHashInput.size(), &aesIvVerify[0]);
 	aesIvVerify.resize(16);
 	cout << "################################" << endl;
-	cout << "AES IV for verification:: ";
+	cout << "AES IV for verification: ";
 	Conversion::printBytes(aesIvVerify);
+	cout << endl;
+	cout << "################################" << endl << endl;
+
+	// Sign public key
+	bytes msg, signature;
+	msg.clear();
+	signature.clear();
+	Conversion::append(msg, clientVerifyPublic);
+	Conversion::append(msg, serverVerifyPublic);
+	size_t siglen = signer.MaxSignatureLength();
+	signature.resize(siglen);
+	AutoSeededRandomPool prng;
+	siglen = signer.SignMessage(prng, (const byte*)&msg[0], msg.size(), (byte*)&signature[0]);
+	signature.resize(siglen);
+	cout << "################################" << endl;
+	cout << "Signed public key (client + server) for verification: ";
+	Conversion::printBytes(signature);
 	cout << endl;
 	cout << "################################" << endl << endl;
 
