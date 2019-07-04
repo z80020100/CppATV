@@ -256,6 +256,7 @@ bytes getBinaryFromResp(char *respData, int bufLen) {
 	return data;
 }
 
+// ref. curve25519_donna() in curve25519-donna.c
 bytes genCurve25519Private(string strSeed) {
 	bytes verifyPrivateKey = Conversion::hexstring2bytes(strSeed);
 	verifyPrivateKey[0] &= 248;
@@ -591,7 +592,7 @@ int main() {
 	cout << endl;
 	cout << "################################" << endl << endl;
 
-	// Encrypt client public key via GCM AES, ciphertext with tag
+	// Encrypt client public key via GCM AES, ciphertext with tag, ref. https://www.cryptopp.com/wiki/Advanced_Encryption_Standard
 	string ciphertext;
 	string plaintext((const char*)public_key, PUBLIC_KEY_LEN);
 	GCM<AES>::Encryption enc;
@@ -680,7 +681,7 @@ int main() {
 		return -1;
 	}
 
-	// Verification: calculate verification key pair
+	// Verification: calculate verification key pair, ref. https://www.cryptopp.com/wiki/X25519
 	bytes clientVerifyPrivate = genCurve25519Private(strSeed);
 	cout << "################################" << endl;
 	cout << "Client verify private: ";
@@ -768,7 +769,7 @@ int main() {
 	cout << endl;
 	cout << "################################" << endl << endl;
 
-	// Generate a shared secret key for verification
+	// Generate a shared secret key for verification, ref. https://www.cryptopp.com/wiki/X25519
 	bytes authShared;
 	authShared.resize(SHARED_KEY_LEN);
 	ret = curve25519_mult(&authShared[0], &clientVerifyPrivate[0], &serverVerifyPublic[0]);
@@ -809,7 +810,7 @@ int main() {
 	cout << endl;
 	cout << "################################" << endl << endl;
 
-	// Sign public key
+	// Sign public key, ref. https://www.cryptopp.com/wiki/Ed25519
 	bytes msg, signature;
 	msg.clear();
 	signature.clear();
@@ -826,7 +827,7 @@ int main() {
 	cout << endl;
 	cout << "################################" << endl << endl;
 
-	// Generate signature via encrypting server response data + signed public key with CTR AES
+	// Generate signature via encrypting server response data + signed public key with CTR AES, ref. https://www.cryptopp.com/wiki/Advanced_Encryption_Standard
 	ciphertext.clear();
 	plaintext.clear();
 	plaintext.append(&serverRespData[0], serverRespData.size());
