@@ -159,6 +159,34 @@ string genPlayUrlRequest(char *host, int port, unsigned char *plist_bin, uint32_
 	return ostrRequest.str().append((const char*)plist_bin, plist_bin_len);
 }
 
+string genPhotoRequest(char *host, int port, unsigned char *jpg_bin, uint32_t jpg_bin_len) {
+       // PUT /photo HTTP/1.1
+       // Cache-Control: no-cache
+       // Pragma: no-cache
+       // User-Agent: MediaControl/1.0
+       // Host: 192.168.0.147:7000
+       // Accept: text/html, image/gif, image/jpeg, *; q=.2, */* q=2
+       // Connection: keep-alive
+       // Content-Length: jpg_bin_len
+       // jpg binary data
+
+       ostringstream ostrRequest;
+       string UrlStr = APPLE_URL_PHOTO;
+
+       ostrRequest << HTTP_REQUEST_METHOD_PUT << " " << UrlStr << " " << HTTP_PROTOCOL_VERSION << "\r\n";
+       ostrRequest << "Cache-Control: no-cache" << "\r\n";
+       ostrRequest << "Pragma: no-cache" << "\r\n";
+       ostrRequest << "User-Agent: MediaControl/1.0" << "\r\n";
+       ostrRequest << "Host: " << host << ":" << port << "\r\n";
+       ostrRequest << "Accept: text/html, image/gif, image/jpeg, *; q=.2, */* q=2" << "\r\n";
+       ostrRequest << "Connection: keep-alive" << "\r\n";
+       ostrRequest << "Content-Length: " << jpg_bin_len << "\r\n";
+
+       ostrRequest << "\r\n";
+
+       return ostrRequest.str().append((const char*)jpg_bin, jpg_bin_len);
+}
+
 plist_t genAuthStep1Plist(string user) {
 	// XML format:
 	// <?xml version="1.0" encoding="UTF-8"?>

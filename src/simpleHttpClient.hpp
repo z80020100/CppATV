@@ -4,6 +4,7 @@
 
 #define HTTP_PROTOCOL_VERSION           "HTTP/1.1"
 #define HTTP_REQUEST_METHOD_POST        "POST"
+#define HTTP_REQUEST_METHOD_PUT         "PUT"
 
 using namespace std;
 
