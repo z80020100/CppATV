@@ -297,7 +297,7 @@ int main() {
 	bool debug = true;
 	int ret = -1;
 
-	char* host = "192.168.0.147";
+	char* host = "192.168.0.150";
 	int port = 7000;
 	char pResponseBuf[BUF_SIZE] = {0};
 	char pBuf[BUF_SIZE] = {0};
@@ -918,39 +918,96 @@ int main() {
 		return -1;
 	}
 
-	// Request Apple TV to play a URL
-	plist_t playUrlPlist = genPlayUrlPlist("https://p-events-delivery.akamaized.net/18oijbasfvuhbfsdvoijhbsdfvljkb6/m3u8/hls_vod_mvp.m3u8", 0);
-	plist_to_bin(playUrlPlist, (char**)&plist_bin, &plist_bin_len);
+ENTER_OP:
+	string op;
+	cout << "Choose operation:" << endl;
+	cout << "  1. Request Apple TV to display a image." << endl;
+	cout << "  2. Request Apple TV to play a URL." << endl;
+	cout << ">>";
+	op.clear();
+	cin >> op;
+	cin.ignore();
 
-	strRequestData = genPlayUrlRequest(host, port, plist_bin, plist_bin_len);
-	free(plist_bin);
-	plist_bin = NULL;
-	ret = httpClient.sendData(strRequestData.c_str(), strRequestData.length());
-	if(ret != 1) {
-		printf("Send %d bytes data\n", ret);
-		if(debug) {
-			cout << "################################" << endl;
-			cout << strRequestData << endl;
-			cout << "################################" << endl << endl;
+	if(!op.compare("1")) {
+		cout << "################################" << endl;
+		cout << "Request Apple TV to display a image: test.jpg" << endl;
+		cout << "################################" << endl << endl;
+		FILE * pFile;
+		long lSize;
+		char * buffer;
+		size_t result;
+		pFile = fopen("test.jpg", "rb" );
+		printf("Open\n");
+		if (pFile != NULL) {
+			fseek (pFile , 0 , SEEK_END);
+			lSize = ftell (pFile);
+			rewind (pFile);
+			printf("Open file succeed: %ld\n", lSize);
+		} else {
+			printf("Open file failed...\n");
+			return -1;
+		}
+
+		buffer = (char*) malloc (sizeof(char)*lSize);
+		result = fread (buffer,1,lSize,pFile);
+		strRequestData = genPhotoRequest(host, port, buffer, lSize);
+		ret = httpClient.sendData(strRequestData.c_str(), strRequestData.length());
+		memset(pResponseBuf, 0, BUF_SIZE);
+		ret = httpClient.recvData(pResponseBuf, BUF_SIZE);
+		if(ret != 1) {
+			printf("Reveive %d bytes data\n", ret);
+			if(debug) {
+				cout << "################################" << endl;
+				cout << pResponseBuf << endl;
+				cout << "################################" << endl << endl;
+			}
+		} else {
+			printf("Receive data failed, ret = %d\n", ret);
+			return -1;
+		}
+	} else if(!op.compare("2")) {
+		cout << "################################" << endl;
+		cout << "Request Apple TV to play a URL: https://p-events-delivery.akamaized.net/18oijbasfvuhbfsdvoijhbsdfvljkb6/m3u8/hls_vod_mvp.m3u8" << endl;
+		cout << "################################" << endl << endl;
+		// Request Apple TV to play a URL
+		plist_t playUrlPlist = genPlayUrlPlist("https://p-events-delivery.akamaized.net/18oijbasfvuhbfsdvoijhbsdfvljkb6/m3u8/hls_vod_mvp.m3u8", 0);
+		plist_to_bin(playUrlPlist, (char**)&plist_bin, &plist_bin_len);
+
+		strRequestData = genPlayUrlRequest(host, port, plist_bin, plist_bin_len);
+		free(plist_bin);
+		plist_bin = NULL;
+		ret = httpClient.sendData(strRequestData.c_str(), strRequestData.length());
+		if(ret != 1) {
+			printf("Send %d bytes data\n", ret);
+			if(debug) {
+				cout << "################################" << endl;
+				cout << strRequestData << endl;
+				cout << "################################" << endl << endl;
+			}
+		} else {
+			printf("Send data failed, ret = %d\n", ret);
+			return -1;
+		}
+
+		// Apple TV response for play URL request
+		memset(pResponseBuf, 0, BUF_SIZE);
+		ret = httpClient.recvData(pResponseBuf, BUF_SIZE);
+		if(ret != 1) {
+			printf("Reveive %d bytes data\n", ret);
+			if(debug) {
+				cout << "################################" << endl;
+				cout << pResponseBuf << endl;
+				cout << "################################" << endl << endl;
+			}
+		} else {
+			printf("Receive data failed, ret = %d\n", ret);
+			return -1;
 		}
 	} else {
-		printf("Send data failed, ret = %d\n", ret);
-		return -1;
-	}
-
-	// Apple TV response for play URL request
-	memset(pResponseBuf, 0, BUF_SIZE);
-	ret = httpClient.recvData(pResponseBuf, BUF_SIZE);
-	if(ret != 1) {
-		printf("Reveive %d bytes data\n", ret);
-		if(debug) {
-			cout << "################################" << endl;
-			cout << pResponseBuf << endl;
-			cout << "################################" << endl << endl;
-		}
-	} else {
-		printf("Receive data failed, ret = %d\n", ret);
-		return -1;
+		cout << "################################" << endl;
+		cout << "Unknown operation code: " << op << endl;
+		cout << "################################" << endl << endl;
+		goto ENTER_OP;
 	}
 
 	while(true){
